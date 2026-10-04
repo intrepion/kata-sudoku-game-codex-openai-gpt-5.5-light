@@ -99,3 +99,23 @@ _Avoid_: Break, background pause
 **Saved Puzzle State**:
 The locally persisted in-progress puzzle, including entries, notes, timer, mistakes, completion status, and settings.
 _Avoid_: Save file, session cache
+
+**Solver**:
+The game's logic for validating puzzles, finding next useful hint steps, and later rating generated puzzle difficulty.
+_Avoid_: AI, answer engine
+
+**Technique Label**:
+The optional Sudoku technique name associated with a hint step.
+_Avoid_: Hint title, strategy badge
+
+**Theme**:
+The visual color treatment the player can choose without changing the rules or puzzle state.
+_Avoid_: Skin, palette
+
+**Reduced Motion**:
+A setting that limits nonessential animation while preserving game feedback.
+_Avoid_: Accessibility mode, low motion
+
+**Sound Cue**:
+A short generated audio response for actions such as entry, note, mistake, completion, or button selection.
+_Avoid_: Sound effect, audio asset
