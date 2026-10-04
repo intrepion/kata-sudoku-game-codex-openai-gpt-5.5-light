@@ -1,7 +1,15 @@
 import "./style.css";
 import { APP_NAME } from "./app";
 import { STARTER_PUZZLES, type Difficulty, type StarterPuzzle } from "./starter-bank";
-import { hasPeerConflict, parsePuzzle, type Digit, type Puzzle } from "./sudoku";
+import { hasPeerConflict, isSolved, parsePuzzle, type Digit, type Puzzle } from "./sudoku";
+
+type Settings = {
+  mistakeChecking: boolean;
+  conflictHighlighting: boolean;
+  sound: boolean;
+  reducedMotion: boolean;
+  autoNoteCleanup: boolean;
+};
 
 type GameState = {
   puzzle: StarterPuzzle | null;
@@ -10,6 +18,26 @@ type GameState = {
   selectedCell: number | null;
   selectedDigit: Digit | null;
   noteMode: boolean;
+  elapsedSeconds: number;
+  paused: boolean;
+  completed: boolean;
+  hintsUsed: number;
+  settingsOpen: boolean;
+  settings: Settings;
+};
+
+type SavedState = Omit<GameState, "puzzle" | "notes"> & {
+  puzzleId: string | null;
+  notes: Digit[][];
+};
+
+const STORAGE_KEY = "ninefold-daily-state-v1";
+const DEFAULT_SETTINGS: Settings = {
+  mistakeChecking: true,
+  conflictHighlighting: true,
+  sound: true,
+  reducedMotion: false,
+  autoNoteCleanup: true,
 };
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -19,15 +47,15 @@ if (!app) {
 }
 
 const mount = app;
+const state: GameState = loadState();
 
-const state: GameState = {
-  puzzle: null,
-  entries: Array<Digit | null>(81).fill(null),
-  notes: Array.from({ length: 81 }, () => new Set<Digit>()),
-  selectedCell: null,
-  selectedDigit: null,
-  noteMode: false,
-};
+window.setInterval(() => {
+  if (state.puzzle && !state.paused && !state.completed) {
+    state.elapsedSeconds += 1;
+    saveState();
+    updateTimerText();
+  }
+}, 1000);
 
 render();
 
@@ -80,9 +108,19 @@ function renderPuzzle(): void {
         <div>
           <p class="eyebrow">${APP_NAME}</p>
           <h1 id="puzzle-title">${titleCase(puzzle.difficulty)} puzzle ${puzzleNumber}</h1>
+          <p class="status-line">
+            <span data-timer>${formatTime(state.elapsedSeconds)}</span>
+            <span>${state.hintsUsed} hints</span>
+            <span>${state.completed ? "Complete" : "In progress"}</span>
+          </p>
         </div>
-        <button class="secondary-button" type="button" data-action="change-puzzle">Change puzzle</button>
+        <div class="header-actions">
+          <button class="secondary-button" type="button" data-action="pause">${state.paused ? "Resume" : "Pause"}</button>
+          <button class="secondary-button" type="button" data-action="settings">Settings</button>
+          <button class="secondary-button" type="button" data-action="change-puzzle">Change puzzle</button>
+        </div>
       </header>
+      ${state.paused ? `<div class="pause-panel"><p>Paused</p></div>` : ""}
       <div class="play-area">
         <div class="grid" role="grid" aria-label="Sudoku grid">
           ${Array.from({ length: 81 }, (_, index) => renderCell(index)).join("")}
@@ -95,11 +133,39 @@ function renderPuzzle(): void {
             Note mode
           </button>
           <button class="secondary-button" type="button" data-action="erase">Erase</button>
+          <button class="secondary-button" type="button" data-action="hint">Hint</button>
+          <button class="secondary-button" type="button" data-action="check">Check puzzle</button>
         </aside>
       </div>
+      ${state.settingsOpen ? renderSettings() : ""}
     </section>
   `;
 
+  bindPuzzleEvents();
+}
+
+function renderSettings(): string {
+  return `
+    <section class="settings-panel" aria-label="Settings">
+      ${settingCheckbox("mistakeChecking", "Mistake checking")}
+      ${settingCheckbox("conflictHighlighting", "Conflict highlighting")}
+      ${settingCheckbox("sound", "Sound")}
+      ${settingCheckbox("reducedMotion", "Reduced motion")}
+      ${settingCheckbox("autoNoteCleanup", "Auto note cleanup")}
+    </section>
+  `;
+}
+
+function settingCheckbox(key: keyof Settings, label: string): string {
+  return `
+    <label>
+      <input type="checkbox" data-setting="${key}" ${state.settings[key] ? "checked" : ""} />
+      ${label}
+    </label>
+  `;
+}
+
+function bindPuzzleEvents(): void {
   mount.querySelectorAll<HTMLButtonElement>("[data-cell]").forEach((button) => {
     button.addEventListener("click", () => selectCell(Number(button.dataset.cell)));
   });
@@ -110,16 +176,34 @@ function renderPuzzle(): void {
 
   mount.querySelector<HTMLButtonElement>("[data-action='note-mode']")?.addEventListener("click", () => {
     state.noteMode = !state.noteMode;
-    render();
+    saveAndRender();
   });
 
   mount.querySelector<HTMLButtonElement>("[data-action='erase']")?.addEventListener("click", eraseSelected);
+  mount.querySelector<HTMLButtonElement>("[data-action='hint']")?.addEventListener("click", giveHint);
+  mount.querySelector<HTMLButtonElement>("[data-action='check']")?.addEventListener("click", checkPuzzle);
+  mount.querySelector<HTMLButtonElement>("[data-action='pause']")?.addEventListener("click", () => {
+    state.paused = !state.paused;
+    saveAndRender();
+  });
+  mount.querySelector<HTMLButtonElement>("[data-action='settings']")?.addEventListener("click", () => {
+    state.settingsOpen = !state.settingsOpen;
+    saveAndRender();
+  });
   mount
     .querySelector<HTMLButtonElement>("[data-action='change-puzzle']")
     ?.addEventListener("click", () => {
       state.puzzle = null;
-      render();
+      saveAndRender();
     });
+
+  mount.querySelectorAll<HTMLInputElement>("[data-setting]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.dataset.setting as keyof Settings;
+      state.settings[key] = input.checked;
+      saveAndRender();
+    });
+  });
 }
 
 function difficultyButton(difficulty: Difficulty, label: string): string {
@@ -145,11 +229,11 @@ function renderCell(index: number): string {
   const row = Math.floor(index / 9) + 1;
   const column = (index % 9) + 1;
   const selected = state.selectedCell === index ? " is-selected" : "";
-  const invalid = entry !== null && hasPeerConflict(currentPuzzle(), index, entry);
+  const invalid =
+    state.settings.mistakeChecking && entry !== null && hasPeerConflict(currentPuzzle(), index, entry);
+  const conflictClass = state.settings.conflictHighlighting && invalid ? "has-conflict" : "";
   const label = `Row ${row} column ${column} ${value ?? "empty"}`;
-  const classes = ["cell", given ? "is-given" : "", selected, invalid ? "has-conflict" : ""]
-    .filter(Boolean)
-    .join(" ");
+  const classes = ["cell", given ? "is-given" : "", selected, conflictClass].filter(Boolean).join(" ");
 
   return `
     <button
@@ -185,7 +269,11 @@ function startPuzzle(difficulty: Difficulty): void {
   state.selectedCell = null;
   state.selectedDigit = null;
   state.noteMode = false;
-  render();
+  state.elapsedSeconds = 0;
+  state.paused = false;
+  state.completed = false;
+  state.hintsUsed = 0;
+  saveAndRender();
 }
 
 function selectCell(index: number): void {
@@ -196,7 +284,7 @@ function selectCell(index: number): void {
     return;
   }
 
-  render();
+  saveAndRender();
 }
 
 function enterDigit(digit: Digit): void {
@@ -207,7 +295,7 @@ function enterDigit(digit: Digit): void {
     return;
   }
 
-  render();
+  saveAndRender();
 }
 
 function applyDigit(index: number, digit: Digit): void {
@@ -221,9 +309,26 @@ function applyDigit(index: number, digit: Digit): void {
   } else {
     state.entries[index] = digit;
     state.notes[index].clear();
+    cleanupPeerNotes(index, digit);
   }
 
-  render();
+  if (state.puzzle && isSolved(currentPuzzle(), state.puzzle.solution)) {
+    state.completed = true;
+  }
+
+  saveAndRender();
+}
+
+function cleanupPeerNotes(index: number, digit: Digit): void {
+  if (!state.settings.autoNoteCleanup) {
+    return;
+  }
+
+  for (let peerIndex = 0; peerIndex < 81; peerIndex += 1) {
+    if (peerIndex !== index && hasPeerConflict(currentPuzzle(), peerIndex, digit)) {
+      state.notes[peerIndex].delete(digit);
+    }
+  }
 }
 
 function eraseSelected(): void {
@@ -237,7 +342,39 @@ function eraseSelected(): void {
     state.entries[state.selectedCell] = null;
   }
 
-  render();
+  saveAndRender();
+}
+
+function giveHint(): void {
+  const puzzle = state.puzzle;
+  if (!puzzle) {
+    return;
+  }
+
+  const parsed = parsePuzzle(puzzle.givens);
+  const target =
+    state.selectedCell !== null && parsed.cells[state.selectedCell].value === null
+      ? state.selectedCell
+      : parsed.cells.findIndex((cell, index) => cell.value === null && state.entries[index] === null);
+
+  if (target < 0) {
+    return;
+  }
+
+  state.entries[target] = Number(puzzle.solution[target]) as Digit;
+  state.notes[target].clear();
+  state.selectedCell = target;
+  state.hintsUsed += 1;
+  saveAndRender();
+}
+
+function checkPuzzle(): void {
+  if (!state.puzzle) {
+    return;
+  }
+
+  state.completed = isSolved(currentPuzzle(), state.puzzle.solution);
+  saveAndRender();
 }
 
 function currentPuzzle(): Puzzle {
@@ -252,6 +389,69 @@ function currentPuzzle(): Puzzle {
       given: cell.given,
     })),
   };
+}
+
+function saveAndRender(): void {
+  saveState();
+  render();
+}
+
+function saveState(): void {
+  const saved: SavedState = {
+    ...state,
+    puzzleId: state.puzzle?.id ?? null,
+    notes: state.notes.map((notes) => Array.from(notes)),
+  };
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+}
+
+function loadState(): GameState {
+  const emptyState: GameState = {
+    puzzle: null,
+    entries: Array<Digit | null>(81).fill(null),
+    notes: Array.from({ length: 81 }, () => new Set<Digit>()),
+    selectedCell: null,
+    selectedDigit: null,
+    noteMode: false,
+    elapsedSeconds: 0,
+    paused: false,
+    completed: false,
+    hintsUsed: 0,
+    settingsOpen: false,
+    settings: { ...DEFAULT_SETTINGS },
+  };
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return emptyState;
+  }
+
+  try {
+    const saved = JSON.parse(raw) as SavedState;
+    return {
+      ...emptyState,
+      ...saved,
+      puzzle: STARTER_PUZZLES.find((puzzle) => puzzle.id === saved.puzzleId) ?? null,
+      notes: saved.notes.map((notes) => new Set(notes)),
+      settings: { ...DEFAULT_SETTINGS, ...saved.settings },
+    };
+  } catch {
+    return emptyState;
+  }
+}
+
+function updateTimerText(): void {
+  const timer = mount.querySelector<HTMLElement>("[data-timer]");
+  if (timer) {
+    timer.textContent = formatTime(state.elapsedSeconds);
+  }
+}
+
+function formatTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function titleCase(value: string): string {

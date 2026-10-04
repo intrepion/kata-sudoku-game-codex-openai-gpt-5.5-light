@@ -80,6 +80,19 @@ h1 {
   line-height: 1.6;
 }
 
+.status-line,
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status-line {
+  margin: 0.75rem 0 0;
+  color: #526268;
+}
+
 .difficulty-row,
 .number-pad {
   display: flex;
@@ -176,6 +189,33 @@ h1 {
 .controls {
   display: grid;
   gap: 0.75rem;
+}
+
+.settings-panel,
+.pause-panel {
+  border: 1px solid #c9c0ad;
+  border-radius: 8px;
+  padding: 1rem;
+  background: rgb(255 250 240 / 85%);
+}
+
+.settings-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.settings-panel label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pause-panel p {
+  margin: 0;
+  color: #172124;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .number-pad {

@@ -37,3 +37,18 @@ test("player can start a puzzle and use entries and notes", async ({ page }) => 
   await page.getByRole("button", { name: "5" }).click();
   await expect(secondEditable).toHaveAttribute("aria-invalid", "true");
 });
+
+test("player progress and settings persist across reload", async ({ page }) => {
+  await page.goto("/app.html");
+
+  await page.getByRole("button", { name: "Medium" }).click();
+  await page.locator("[data-cell='0']").click();
+  await page.getByRole("button", { name: "4" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("Conflict highlighting").uncheck();
+  await page.reload();
+
+  await expect(page.getByRole("heading", { name: "Medium puzzle 1" })).toBeVisible();
+  await expect(page.locator("[data-cell='0']")).toHaveText("4");
+  await expect(page.getByLabel("Conflict highlighting")).not.toBeChecked();
+});
