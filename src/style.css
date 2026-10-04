@@ -20,9 +20,7 @@ body {
   min-height: 100vh;
 }
 
-button,
-input,
-select {
+button {
   font: inherit;
 }
 
@@ -30,13 +28,31 @@ select {
   min-height: 100vh;
 }
 
-.shell {
+.app-shell,
+.game-shell {
   display: grid;
+  gap: 1.5rem;
+  width: min(100% - 2rem, 72rem);
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.app-shell {
   min-height: 100vh;
   align-content: center;
-  gap: 0.75rem;
-  width: min(100% - 2rem, 56rem);
-  margin: 0 auto;
+}
+
+.masthead,
+.game-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.masthead {
+  display: grid;
+  justify-content: start;
 }
 
 .eyebrow {
@@ -50,9 +66,8 @@ select {
 
 h1 {
   margin: 0;
-  max-width: 12ch;
   color: #172124;
-  font-size: clamp(2.5rem, 4rem, 4rem);
+  font-size: clamp(2rem, 4rem, 4rem);
   line-height: 1;
   letter-spacing: 0;
 }
@@ -63,4 +78,119 @@ h1 {
   color: #425155;
   font-size: 1.125rem;
   line-height: 1.6;
+}
+
+.difficulty-row,
+.number-pad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.primary-button,
+.secondary-button,
+.mode-button,
+.number-button {
+  min-height: 2.75rem;
+  border: 1px solid #1d2528;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  color: #172124;
+  background: #fffaf0;
+  cursor: pointer;
+}
+
+.primary-button,
+.number-button.is-active,
+.mode-button.is-active {
+  color: #fffaf0;
+  background: #1d2528;
+}
+
+.play-area {
+  display: grid;
+  grid-template-columns: minmax(18rem, 38rem) minmax(13rem, 18rem);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  aspect-ratio: 1;
+  border: 3px solid #172124;
+  background: #172124;
+}
+
+.cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border: 1px solid #aab1aa;
+  padding: 0;
+  color: #172124;
+  background: #fffaf0;
+  cursor: pointer;
+}
+
+.cell:nth-child(3n) {
+  border-right-color: #172124;
+}
+
+.cell:nth-child(n + 19):nth-child(-n + 27),
+.cell:nth-child(n + 46):nth-child(-n + 54) {
+  border-bottom-color: #172124;
+}
+
+.cell.is-given {
+  color: #111719;
+  background: #e7ddc9;
+  font-weight: 800;
+  cursor: default;
+}
+
+.cell.is-selected {
+  outline: 3px solid #3f6f7f;
+  outline-offset: -3px;
+}
+
+.cell.has-conflict {
+  background: #f8d7d2;
+}
+
+.entry {
+  font-size: clamp(1.25rem, 5vw, 2.2rem);
+  font-weight: 700;
+}
+
+.notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  padding: 0.2rem;
+  color: #526268;
+  font-size: clamp(0.5rem, 1.5vw, 0.8rem);
+}
+
+.controls {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 760px) {
+  .masthead,
+  .game-header,
+  .play-area {
+    display: grid;
+  }
+
+  .play-area {
+    grid-template-columns: 1fr;
+  }
 }
