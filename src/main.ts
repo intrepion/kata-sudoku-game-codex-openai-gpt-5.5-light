@@ -62,6 +62,28 @@ if (!app) {
 const mount = app;
 const state: GameState = loadState();
 
+document.addEventListener("keydown", (event) => {
+  if (!state.puzzle) {
+    return;
+  }
+
+  if (/^[1-9]$/.test(event.key)) {
+    event.preventDefault();
+    enterDigit(Number(event.key) as Digit);
+  } else if (event.key === "Backspace" || event.key === "Delete") {
+    event.preventDefault();
+    eraseSelected();
+  } else if (event.key.toLowerCase() === "n") {
+    event.preventDefault();
+    state.noteMode = !state.noteMode;
+    saveAndRender();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    state.paused = !state.paused;
+    saveAndRender();
+  }
+});
+
 window.setInterval(() => {
   if (state.puzzle && !state.paused && !state.completed) {
     state.elapsedSeconds += 1;
@@ -219,6 +241,10 @@ function settingCheckbox(key: keyof Settings, label: string): string {
 function bindPuzzleEvents(): void {
   mount.querySelectorAll<HTMLButtonElement>("[data-cell]").forEach((button) => {
     button.addEventListener("click", () => selectCell(Number(button.dataset.cell)));
+    button.addEventListener("focus", () => {
+      state.selectedCell = Number(button.dataset.cell);
+      saveState();
+    });
   });
 
   mount.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((button) => {

@@ -72,3 +72,13 @@ test("player can start daily and archive puzzles from the hub", async ({ page })
   await page.getByRole("button", { name: "Archive puzzle" }).click();
   await expect(page.getByRole("heading", { name: "Archive puzzle" })).toBeVisible();
 });
+
+test("player can enter values with the keyboard", async ({ page }) => {
+  await page.goto("/app.html");
+
+  await page.getByRole("button", { name: "Easy" }).click();
+  await page.locator("[data-cell='3']").focus();
+  await page.keyboard.press("1");
+
+  await expect(page.locator("[data-cell='3']")).toHaveText("1");
+});
