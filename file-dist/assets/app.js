@@ -81,7 +81,14 @@
   ];
 
   // src/sudoku.ts
+  var ALL_DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   var PUZZLE_LENGTH = 81;
+  var BASE_SOLUTION2 = "534678912672195348198342567859761423426853791713924856961537284287419635345286179";
+  var TARGET_CLUES = {
+    easy: 36,
+    medium: 31,
+    hard: 27
+  };
   function parsePuzzle(givens) {
     if (givens.length !== PUZZLE_LENGTH) {
       throw new Error("A Sudoku puzzle must contain exactly 81 cells.");
@@ -103,8 +110,75 @@
     assertIndex(index);
     return peerIndexes(index).some((peerIndex) => puzzle.cells[peerIndex]?.value === digit);
   }
+  function solvePuzzle(puzzle, maxSolutions = 2) {
+    const board = puzzle.cells.map((cell) => cell.value);
+    const solutions = [];
+    search(board, solutions, maxSolutions);
+    return {
+      solution: solutions[0] ? solutions[0].join("") : null,
+      solutionCount: solutions.length
+    };
+  }
   function isSolved(puzzle, solution) {
     return puzzle.cells.map((cell) => cell.value ?? "0").join("") === solution;
+  }
+  function generatePuzzle(difficulty, seed) {
+    const targetClues = TARGET_CLUES[difficulty];
+    const cells = BASE_SOLUTION2.split("");
+    for (const index of shuffledIndexes(seed)) {
+      const previous = cells[index];
+      cells[index] = "0";
+      const givens = cells.join("");
+      const solved = solvePuzzle(parsePuzzle(givens));
+      const clueCount = cells.filter((cell) => cell !== "0").length;
+      if (solved.solutionCount !== 1 || solved.solution !== BASE_SOLUTION2 || clueCount < targetClues) {
+        cells[index] = previous;
+      }
+      if (cells.filter((cell) => cell !== "0").length === targetClues) {
+        break;
+      }
+    }
+    return {
+      difficulty,
+      givens: cells.join(""),
+      solution: BASE_SOLUTION2
+    };
+  }
+  function search(board, solutions, maxSolutions) {
+    if (solutions.length >= maxSolutions) {
+      return;
+    }
+    const next = findMostConstrainedCell(board);
+    if (!next) {
+      solutions.push(board.slice());
+      return;
+    }
+    for (const digit of next.candidates) {
+      board[next.index] = digit;
+      search(board, solutions, maxSolutions);
+      board[next.index] = null;
+    }
+  }
+  function findMostConstrainedCell(board) {
+    let best = null;
+    for (let index = 0; index < board.length; index += 1) {
+      if (board[index] !== null) {
+        continue;
+      }
+      const candidates = ALL_DIGITS.filter(
+        (digit) => !boardHasPeerConflict(board, index, digit)
+      );
+      if (candidates.length === 0) {
+        return { index, candidates };
+      }
+      if (!best || candidates.length < best.candidates.length) {
+        best = { index, candidates };
+      }
+    }
+    return best;
+  }
+  function boardHasPeerConflict(board, index, digit) {
+    return peerIndexes(index).some((peerIndex) => board[peerIndex] === digit);
   }
   function peerIndexes(index) {
     const row = Math.floor(index / 9);
@@ -128,6 +202,22 @@
     if (!Number.isInteger(index) || index < 0 || index >= PUZZLE_LENGTH) {
       throw new Error("Cell index must be between 0 and 80.");
     }
+  }
+  function shuffledIndexes(seed) {
+    const indexes = Array.from({ length: PUZZLE_LENGTH }, (_, index) => index);
+    const next = seededRandom(seed);
+    for (let index = indexes.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(next() * (index + 1));
+      [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
+    }
+    return indexes;
+  }
+  function seededRandom(seed) {
+    let state2 = seed >>> 0;
+    return () => {
+      state2 = state2 * 1664525 + 1013904223 >>> 0;
+      return state2 / 2 ** 32;
+    };
   }
 
   // src/main.ts
@@ -172,6 +262,7 @@
         ${difficultyButton("easy", "Easy")}
         ${difficultyButton("medium", "Medium")}
         ${difficultyButton("hard", "Hard")}
+        <button class="primary-button" type="button" data-generated="medium">Generated medium</button>
       </div>
     </section>
   `;
@@ -180,21 +271,33 @@
         startPuzzle(button.dataset.difficulty);
       });
     });
+    mount.querySelector("[data-generated]")?.addEventListener("click", () => {
+      const generated = generatePuzzle("medium", Date.now() % 1e5);
+      state.puzzle = {
+        id: "generated-medium",
+        difficulty: generated.difficulty,
+        givens: generated.givens,
+        solution: generated.solution
+      };
+      resetPuzzleProgress();
+      saveAndRender();
+    });
   }
   function renderPuzzle() {
     const puzzle = state.puzzle;
     if (!puzzle) {
       return;
     }
-    const puzzleNumber = STARTER_PUZZLES.filter((starter) => starter.difficulty === puzzle.difficulty).findIndex(
-      (starter) => starter.id === puzzle.id
-    ) + 1;
+    const starterIndex = STARTER_PUZZLES.filter(
+      (starter) => starter.difficulty === puzzle.difficulty
+    ).findIndex((starter) => starter.id === puzzle.id);
+    const title = starterIndex >= 0 ? `${titleCase(puzzle.difficulty)} puzzle ${starterIndex + 1}` : `Generated ${puzzle.difficulty}`;
     mount.innerHTML = `
     <section class="game-shell" aria-labelledby="puzzle-title">
       <header class="game-header">
         <div>
           <p class="eyebrow">${APP_NAME}</p>
-          <h1 id="puzzle-title">${titleCase(puzzle.difficulty)} puzzle ${puzzleNumber}</h1>
+          <h1 id="puzzle-title">${title}</h1>
           <p class="status-line">
             <span data-timer>${formatTime(state.elapsedSeconds)}</span>
             <span>${state.hintsUsed} hints</span>
@@ -326,6 +429,10 @@
       throw new Error(`Missing starter puzzle for ${difficulty}.`);
     }
     state.puzzle = puzzle;
+    resetPuzzleProgress();
+    saveAndRender();
+  }
+  function resetPuzzleProgress() {
     state.entries = Array(81).fill(null);
     state.notes = Array.from({ length: 81 }, () => /* @__PURE__ */ new Set());
     state.selectedCell = null;
@@ -335,7 +442,6 @@
     state.paused = false;
     state.completed = false;
     state.hintsUsed = 0;
-    saveAndRender();
   }
   function selectCell(index) {
     state.selectedCell = index;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_DIGITS,
   candidatesFor,
+  generatePuzzle,
   hasPeerConflict,
   parsePuzzle,
   solvePuzzle,
@@ -73,5 +74,15 @@ describe("Sudoku engine", () => {
 
   it("uses digits one through nine as the domain alphabet", () => {
     expect(ALL_DIGITS).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it("generates a uniquely solvable puzzle with an estimated difficulty", () => {
+    const generated = generatePuzzle("medium", 42);
+    const solved = solvePuzzle(parsePuzzle(generated.givens));
+
+    expect(generated.difficulty).toBe("medium");
+    expect(generated.givens.replaceAll("0", "")).toHaveLength(31);
+    expect(solved.solutionCount).toBe(1);
+    expect(solved.solution).toBe(generated.solution);
   });
 });

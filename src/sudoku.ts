@@ -12,8 +12,20 @@ export type SolveResult = {
   solution: string | null;
   solutionCount: number;
 };
+export type GeneratedPuzzle = {
+  difficulty: "easy" | "medium" | "hard";
+  givens: string;
+  solution: string;
+};
 
 const PUZZLE_LENGTH = 81;
+const BASE_SOLUTION =
+  "534678912672195348198342567859761423426853791713924856961537284287419635345286179";
+const TARGET_CLUES = {
+  easy: 36,
+  medium: 31,
+  hard: 27,
+} as const;
 
 export function parsePuzzle(givens: string): Puzzle {
   if (givens.length !== PUZZLE_LENGTH) {
@@ -65,6 +77,37 @@ export function solvePuzzle(puzzle: Puzzle, maxSolutions = 2): SolveResult {
 
 export function isSolved(puzzle: Puzzle, solution: string): boolean {
   return puzzle.cells.map((cell) => cell.value ?? "0").join("") === solution;
+}
+
+export function generatePuzzle(
+  difficulty: GeneratedPuzzle["difficulty"],
+  seed: number,
+): GeneratedPuzzle {
+  const targetClues = TARGET_CLUES[difficulty];
+  const cells = BASE_SOLUTION.split("");
+
+  for (const index of shuffledIndexes(seed)) {
+    const previous = cells[index];
+    cells[index] = "0";
+
+    const givens = cells.join("");
+    const solved = solvePuzzle(parsePuzzle(givens));
+    const clueCount = cells.filter((cell) => cell !== "0").length;
+
+    if (solved.solutionCount !== 1 || solved.solution !== BASE_SOLUTION || clueCount < targetClues) {
+      cells[index] = previous;
+    }
+
+    if (cells.filter((cell) => cell !== "0").length === targetClues) {
+      break;
+    }
+  }
+
+  return {
+    difficulty,
+    givens: cells.join(""),
+    solution: BASE_SOLUTION,
+  };
 }
 
 function search(
@@ -149,4 +192,24 @@ function assertIndex(index: number): void {
   if (!Number.isInteger(index) || index < 0 || index >= PUZZLE_LENGTH) {
     throw new Error("Cell index must be between 0 and 80.");
   }
+}
+
+function shuffledIndexes(seed: number): number[] {
+  const indexes = Array.from({ length: PUZZLE_LENGTH }, (_, index) => index);
+  const next = seededRandom(seed);
+
+  for (let index = indexes.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(next() * (index + 1));
+    [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
+  }
+
+  return indexes;
+}
+
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 2 ** 32;
+  };
 }

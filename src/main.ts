@@ -1,7 +1,14 @@
 import "./style.css";
 import { APP_NAME } from "./app";
 import { STARTER_PUZZLES, type Difficulty, type StarterPuzzle } from "./starter-bank";
-import { hasPeerConflict, isSolved, parsePuzzle, type Digit, type Puzzle } from "./sudoku";
+import {
+  generatePuzzle,
+  hasPeerConflict,
+  isSolved,
+  parsePuzzle,
+  type Digit,
+  type Puzzle,
+} from "./sudoku";
 
 type Settings = {
   mistakeChecking: boolean;
@@ -80,6 +87,7 @@ function renderStart(): void {
         ${difficultyButton("easy", "Easy")}
         ${difficultyButton("medium", "Medium")}
         ${difficultyButton("hard", "Hard")}
+        <button class="primary-button" type="button" data-generated="medium">Generated medium</button>
       </div>
     </section>
   `;
@@ -89,6 +97,18 @@ function renderStart(): void {
       startPuzzle(button.dataset.difficulty as Difficulty);
     });
   });
+
+  mount.querySelector<HTMLButtonElement>("[data-generated]")?.addEventListener("click", () => {
+    const generated = generatePuzzle("medium", Date.now() % 100_000);
+    state.puzzle = {
+      id: "generated-medium",
+      difficulty: generated.difficulty,
+      givens: generated.givens,
+      solution: generated.solution,
+    };
+    resetPuzzleProgress();
+    saveAndRender();
+  });
 }
 
 function renderPuzzle(): void {
@@ -97,17 +117,20 @@ function renderPuzzle(): void {
     return;
   }
 
-  const puzzleNumber =
-    STARTER_PUZZLES.filter((starter) => starter.difficulty === puzzle.difficulty).findIndex(
-      (starter) => starter.id === puzzle.id,
-    ) + 1;
+  const starterIndex = STARTER_PUZZLES.filter(
+    (starter) => starter.difficulty === puzzle.difficulty,
+  ).findIndex((starter) => starter.id === puzzle.id);
+  const title =
+    starterIndex >= 0
+      ? `${titleCase(puzzle.difficulty)} puzzle ${starterIndex + 1}`
+      : `Generated ${puzzle.difficulty}`;
 
   mount.innerHTML = `
     <section class="game-shell" aria-labelledby="puzzle-title">
       <header class="game-header">
         <div>
           <p class="eyebrow">${APP_NAME}</p>
-          <h1 id="puzzle-title">${titleCase(puzzle.difficulty)} puzzle ${puzzleNumber}</h1>
+          <h1 id="puzzle-title">${title}</h1>
           <p class="status-line">
             <span data-timer>${formatTime(state.elapsedSeconds)}</span>
             <span>${state.hintsUsed} hints</span>
@@ -264,6 +287,11 @@ function startPuzzle(difficulty: Difficulty): void {
   }
 
   state.puzzle = puzzle;
+  resetPuzzleProgress();
+  saveAndRender();
+}
+
+function resetPuzzleProgress(): void {
   state.entries = Array<Digit | null>(81).fill(null);
   state.notes = Array.from({ length: 81 }, () => new Set<Digit>());
   state.selectedCell = null;
@@ -273,7 +301,6 @@ function startPuzzle(difficulty: Difficulty): void {
   state.paused = false;
   state.completed = false;
   state.hintsUsed = 0;
-  saveAndRender();
 }
 
 function selectCell(index: number): void {
