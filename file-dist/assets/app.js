@@ -259,11 +259,18 @@
         <p class="intro">Pick a difficulty and Ninefold Daily opens the next unfinished puzzle.</p>
       </header>
       <div class="difficulty-row" aria-label="Choose difficulty">
+        <button class="primary-button" type="button" data-special="daily">Daily puzzle</button>
+        <button class="primary-button" type="button" data-special="archive">Archive puzzle</button>
         ${difficultyButton("easy", "Easy")}
         ${difficultyButton("medium", "Medium")}
         ${difficultyButton("hard", "Hard")}
         <button class="primary-button" type="button" data-generated="medium">Generated medium</button>
       </div>
+      <dl class="stats-strip" aria-label="Stats">
+        <div><dt>Completion count</dt><dd>${state.stats.completionCount}</dd></div>
+        <div><dt>Current streak</dt><dd>${state.stats.currentStreak}</dd></div>
+        <div><dt>Longest streak</dt><dd>${state.stats.longestStreak}</dd></div>
+      </dl>
     </section>
   `;
     mount.querySelectorAll("[data-difficulty]").forEach((button) => {
@@ -279,8 +286,18 @@
         givens: generated.givens,
         solution: generated.solution
       };
+      state.puzzleKind = "generated";
       resetPuzzleProgress();
       saveAndRender();
+    });
+    mount.querySelectorAll("[data-special]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const kind = button.dataset.special === "archive" ? "archive" : "daily";
+        state.puzzle = kind === "daily" ? STARTER_PUZZLES[0] : STARTER_PUZZLES[1];
+        state.puzzleKind = kind;
+        resetPuzzleProgress();
+        saveAndRender();
+      });
     });
   }
   function renderPuzzle() {
@@ -291,7 +308,7 @@
     const starterIndex = STARTER_PUZZLES.filter(
       (starter) => starter.difficulty === puzzle.difficulty
     ).findIndex((starter) => starter.id === puzzle.id);
-    const title = starterIndex >= 0 ? `${titleCase(puzzle.difficulty)} puzzle ${starterIndex + 1}` : `Generated ${puzzle.difficulty}`;
+    const title = state.puzzleKind === "daily" ? "Daily puzzle" : state.puzzleKind === "archive" ? "Archive puzzle" : starterIndex >= 0 ? `${titleCase(puzzle.difficulty)} puzzle ${starterIndex + 1}` : `Generated ${puzzle.difficulty}`;
     mount.innerHTML = `
     <section class="game-shell" aria-labelledby="puzzle-title">
       <header class="game-header">
@@ -429,6 +446,7 @@
       throw new Error(`Missing starter puzzle for ${difficulty}.`);
     }
     state.puzzle = puzzle;
+    state.puzzleKind = "starter";
     resetPuzzleProgress();
     saveAndRender();
   }
@@ -473,7 +491,7 @@
       cleanupPeerNotes(index, digit);
     }
     if (state.puzzle && isSolved(currentPuzzle(), state.puzzle.solution)) {
-      state.completed = true;
+      completePuzzle();
     }
     saveAndRender();
   }
@@ -519,7 +537,21 @@
       return;
     }
     state.completed = isSolved(currentPuzzle(), state.puzzle.solution);
+    if (state.completed) {
+      completePuzzle();
+    }
     saveAndRender();
+  }
+  function completePuzzle() {
+    if (state.completed) {
+      return;
+    }
+    state.completed = true;
+    state.stats.completionCount += 1;
+    if (state.puzzleKind === "daily") {
+      state.stats.currentStreak += 1;
+      state.stats.longestStreak = Math.max(state.stats.longestStreak, state.stats.currentStreak);
+    }
   }
   function currentPuzzle() {
     if (!state.puzzle) {
@@ -558,7 +590,13 @@
       completed: false,
       hintsUsed: 0,
       settingsOpen: false,
-      settings: { ...DEFAULT_SETTINGS }
+      settings: { ...DEFAULT_SETTINGS },
+      puzzleKind: "starter",
+      stats: {
+        completionCount: 0,
+        currentStreak: 0,
+        longestStreak: 0
+      }
     };
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {

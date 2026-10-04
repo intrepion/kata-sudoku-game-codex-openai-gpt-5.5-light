@@ -61,3 +61,14 @@ test("player can start a generated puzzle", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Generated medium" })).toBeVisible();
   await expect(page.getByRole("grid", { name: "Sudoku grid" })).toBeVisible();
 });
+
+test("player can start daily and archive puzzles from the hub", async ({ page }) => {
+  await page.goto("/app.html");
+
+  await expect(page.getByText("Completion count")).toBeVisible();
+  await page.getByRole("button", { name: "Daily puzzle" }).click();
+  await expect(page.getByRole("heading", { name: "Daily puzzle" })).toBeVisible();
+  await page.getByRole("button", { name: "Change puzzle" }).click();
+  await page.getByRole("button", { name: "Archive puzzle" }).click();
+  await expect(page.getByRole("heading", { name: "Archive puzzle" })).toBeVisible();
+});

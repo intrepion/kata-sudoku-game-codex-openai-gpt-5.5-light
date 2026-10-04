@@ -100,6 +100,32 @@ h1 {
   gap: 0.5rem;
 }
 
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.stats-strip div {
+  border: 1px solid #c9c0ad;
+  border-radius: 8px;
+  padding: 0.85rem;
+  background: rgb(255 250 240 / 80%);
+}
+
+.stats-strip dt {
+  color: #526268;
+  font-size: 0.85rem;
+}
+
+.stats-strip dd {
+  margin: 0.25rem 0 0;
+  color: #172124;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
 .primary-button,
 .secondary-button,
 .mode-button,
