@@ -119,3 +119,27 @@ _Avoid_: Accessibility mode, low motion
 **Sound Cue**:
 A short generated audio response for actions such as entry, note, mistake, completion, or button selection.
 _Avoid_: Sound effect, audio asset
+
+**Next Unfinished Puzzle**:
+The first incomplete puzzle in a selected difficulty that the game starts by default.
+_Avoid_: Recommended level, next board
+
+**Change Puzzle**:
+The player action for leaving the current starter-bank puzzle and choosing another puzzle in the same difficulty.
+_Avoid_: Level select, browser
+
+**Hint Usage**:
+The count of hint steps the player uses while completing a puzzle.
+_Avoid_: Penalty, help score
+
+**Clear All**:
+The player action that removes both entries and notes from an editable cell.
+_Avoid_: Reset cell, wipe
+
+**Auto Note Cleanup**:
+The setting that removes matching notes from peer cells after an entry is placed.
+_Avoid_: Smart notes, auto pencil
+
+**Accessible Completion**:
+The ability to complete a puzzle with keyboard-only controls, visible focus, semantic labels, color-independent feedback, reduced motion support, and readable mobile text.
+_Avoid_: Accessibility mode, screen reader version
