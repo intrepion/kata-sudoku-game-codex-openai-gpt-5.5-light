@@ -16,6 +16,7 @@ export type GeneratedPuzzle = {
   difficulty: "easy" | "medium" | "hard";
   givens: string;
   solution: string;
+  ratingEvidence: string;
 };
 
 const PUZZLE_LENGTH = 81;
@@ -107,7 +108,19 @@ export function generatePuzzle(
     difficulty,
     givens: cells.join(""),
     solution: BASE_SOLUTION,
+    ratingEvidence: solverRatingEvidence(cells.join("")),
   };
+}
+
+export function solverRatingEvidence(givens: string): string {
+  const emptyCells = Array.from(givens).filter((cell) => cell === "0" || cell === ".").length;
+  if (emptyCells >= 54) {
+    return "Solver-rated hard: at least 54 empty cells with a unique solution.";
+  }
+  if (emptyCells >= 49) {
+    return "Solver-rated medium: at least 49 empty cells with a unique solution.";
+  }
+  return "Solver-rated easy: fewer than 49 empty cells with a unique solution.";
 }
 
 function search(

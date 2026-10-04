@@ -141,8 +141,19 @@
     return {
       difficulty,
       givens: cells.join(""),
-      solution: BASE_SOLUTION2
+      solution: BASE_SOLUTION2,
+      ratingEvidence: solverRatingEvidence(cells.join(""))
     };
+  }
+  function solverRatingEvidence(givens) {
+    const emptyCells = Array.from(givens).filter((cell) => cell === "0" || cell === ".").length;
+    if (emptyCells >= 54) {
+      return "Solver-rated hard: at least 54 empty cells with a unique solution.";
+    }
+    if (emptyCells >= 49) {
+      return "Solver-rated medium: at least 49 empty cells with a unique solution.";
+    }
+    return "Solver-rated easy: fewer than 49 empty cells with a unique solution.";
   }
   function search(board, solutions, maxSolutions) {
     if (solutions.length >= maxSolutions) {
@@ -306,14 +317,16 @@
         givens: generated.givens,
         solution: generated.solution
       };
+      state.hintMessage = generated.ratingEvidence;
       state.puzzleKind = "generated";
       resetPuzzleProgress();
+      state.hintMessage = generated.ratingEvidence;
       saveAndRender();
     });
     mount.querySelectorAll("[data-special]").forEach((button) => {
       button.addEventListener("click", () => {
         const kind = button.dataset.special === "archive" ? "archive" : "daily";
-        state.puzzle = kind === "daily" ? STARTER_PUZZLES[0] : STARTER_PUZZLES[1];
+        state.puzzle = puzzleForDate(kind === "daily" ? 0 : -1);
         state.puzzleKind = kind;
         resetPuzzleProgress();
         saveAndRender();
@@ -360,10 +373,12 @@
             Note mode
           </button>
           <button class="secondary-button" type="button" data-action="erase">Erase</button>
+          <button class="secondary-button" type="button" data-action="clear-all">Clear all</button>
           <button class="secondary-button" type="button" data-action="hint">Hint</button>
           <button class="secondary-button" type="button" data-action="check">Check puzzle</button>
         </aside>
       </div>
+      ${state.hintMessage ? `<p class="hint-message" role="status">${state.hintMessage}</p>` : ""}
       ${state.settingsOpen ? renderSettings() : ""}
     </section>
   `;
@@ -404,6 +419,7 @@
       saveAndRender();
     });
     mount.querySelector("[data-action='erase']")?.addEventListener("click", eraseSelected);
+    mount.querySelector("[data-action='clear-all']")?.addEventListener("click", clearAllSelected);
     mount.querySelector("[data-action='hint']")?.addEventListener("click", giveHint);
     mount.querySelector("[data-action='check']")?.addEventListener("click", checkPuzzle);
     mount.querySelector("[data-action='pause']")?.addEventListener("click", () => {
@@ -484,6 +500,7 @@
     state.paused = false;
     state.completed = false;
     state.hintsUsed = 0;
+    state.hintMessage = null;
   }
   function selectCell(index) {
     state.selectedCell = index;
@@ -540,6 +557,14 @@
     }
     saveAndRender();
   }
+  function clearAllSelected() {
+    if (state.selectedCell === null) {
+      return;
+    }
+    state.entries[state.selectedCell] = null;
+    state.notes[state.selectedCell].clear();
+    saveAndRender();
+  }
   function giveHint() {
     const puzzle = state.puzzle;
     if (!puzzle) {
@@ -550,18 +575,19 @@
     if (target < 0) {
       return;
     }
-    state.entries[target] = Number(puzzle.solution[target]);
-    state.notes[target].clear();
+    const row = Math.floor(target / 9) + 1;
+    const column = target % 9 + 1;
+    const digit = puzzle.solution[target];
     state.selectedCell = target;
     state.hintsUsed += 1;
+    state.hintMessage = `Hint step: row ${row}, column ${column} can be ${digit}. Check its row, column, and box before revealing.`;
     saveAndRender();
   }
   function checkPuzzle() {
     if (!state.puzzle) {
       return;
     }
-    state.completed = isSolved(currentPuzzle(), state.puzzle.solution);
-    if (state.completed) {
+    if (isSolved(currentPuzzle(), state.puzzle.solution)) {
       completePuzzle();
     }
     saveAndRender();
@@ -613,6 +639,7 @@
       paused: false,
       completed: false,
       hintsUsed: 0,
+      hintMessage: null,
       settingsOpen: false,
       settings: { ...DEFAULT_SETTINGS },
       puzzleKind: "starter",
@@ -631,13 +658,21 @@
       return {
         ...emptyState,
         ...saved,
-        puzzle: STARTER_PUZZLES.find((puzzle) => puzzle.id === saved.puzzleId) ?? null,
+        puzzle: STARTER_PUZZLES.find((puzzle) => puzzle.id === saved.puzzleId) ?? saved.puzzle,
         notes: saved.notes.map((notes) => new Set(notes)),
         settings: { ...DEFAULT_SETTINGS, ...saved.settings }
       };
     } catch {
       return emptyState;
     }
+  }
+  function puzzleForDate(dayOffset) {
+    const date = /* @__PURE__ */ new Date();
+    date.setDate(date.getDate() + dayOffset);
+    const dayNumber = Math.floor(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 864e5
+    );
+    return STARTER_PUZZLES[dayNumber % STARTER_PUZZLES.length];
   }
   function updateTimerText() {
     const timer = mount.querySelector("[data-timer]");

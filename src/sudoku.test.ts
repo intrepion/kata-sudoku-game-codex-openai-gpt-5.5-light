@@ -82,6 +82,7 @@ describe("Sudoku engine", () => {
 
     expect(generated.difficulty).toBe("medium");
     expect(generated.givens.replaceAll("0", "")).toHaveLength(31);
+    expect(generated.ratingEvidence).toMatch(/Solver-rated medium/);
     expect(solved.solutionCount).toBe(1);
     expect(solved.solution).toBe(generated.solution);
   });

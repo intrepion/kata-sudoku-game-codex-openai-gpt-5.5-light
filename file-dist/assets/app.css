@@ -192,7 +192,8 @@ h1 {
   gap: 0.75rem;
 }
 .settings-panel,
-.pause-panel {
+.pause-panel,
+.hint-message {
   border: 1px solid #c9c0ad;
   border-radius: 8px;
   padding: 1rem;
@@ -213,6 +214,11 @@ h1 {
   color: #172124;
   font-size: 1.25rem;
   font-weight: 800;
+}
+.hint-message {
+  margin: 0;
+  color: #2f4d57;
+  line-height: 1.5;
 }
 .number-pad {
   display: grid;

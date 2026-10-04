@@ -82,3 +82,19 @@ test("player can enter values with the keyboard", async ({ page }) => {
 
   await expect(page.locator("[data-cell='3']")).toHaveText("1");
 });
+
+test("hint explains the next step and clear all removes entries and notes", async ({ page }) => {
+  await page.goto("/app.html");
+
+  await page.getByRole("button", { name: "Easy" }).click();
+  const cell = page.locator("[data-cell='3']");
+  await cell.click();
+  await page.getByRole("button", { name: "Note mode" }).click();
+  await page.getByRole("button", { name: "2" }).click();
+  await expect(cell).toContainText("2");
+  await page.getByRole("button", { name: "Clear all" }).click();
+  await expect(cell).toHaveText("");
+  await page.getByRole("button", { name: "Hint" }).click();
+  await expect(page.getByText(/Hint step: row/i)).toBeVisible();
+  await expect(cell).toHaveText("");
+});

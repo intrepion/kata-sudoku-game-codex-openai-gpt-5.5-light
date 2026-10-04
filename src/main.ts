@@ -29,6 +29,7 @@ type GameState = {
   paused: boolean;
   completed: boolean;
   hintsUsed: number;
+  hintMessage: string | null;
   settingsOpen: boolean;
   settings: Settings;
   puzzleKind: "starter" | "generated" | "daily" | "archive";
@@ -41,6 +42,7 @@ type GameState = {
 
 type SavedState = Omit<GameState, "puzzle" | "notes"> & {
   puzzleId: string | null;
+  puzzle: StarterPuzzle | null;
   notes: Digit[][];
 };
 
@@ -141,15 +143,17 @@ function renderStart(): void {
       givens: generated.givens,
       solution: generated.solution,
     };
+    state.hintMessage = generated.ratingEvidence;
     state.puzzleKind = "generated";
     resetPuzzleProgress();
+    state.hintMessage = generated.ratingEvidence;
     saveAndRender();
   });
 
   mount.querySelectorAll<HTMLButtonElement>("[data-special]").forEach((button) => {
     button.addEventListener("click", () => {
       const kind = button.dataset.special === "archive" ? "archive" : "daily";
-      state.puzzle = kind === "daily" ? STARTER_PUZZLES[0] : STARTER_PUZZLES[1];
+      state.puzzle = puzzleForDate(kind === "daily" ? 0 : -1);
       state.puzzleKind = kind;
       resetPuzzleProgress();
       saveAndRender();
@@ -206,10 +210,12 @@ function renderPuzzle(): void {
             Note mode
           </button>
           <button class="secondary-button" type="button" data-action="erase">Erase</button>
+          <button class="secondary-button" type="button" data-action="clear-all">Clear all</button>
           <button class="secondary-button" type="button" data-action="hint">Hint</button>
           <button class="secondary-button" type="button" data-action="check">Check puzzle</button>
         </aside>
       </div>
+      ${state.hintMessage ? `<p class="hint-message" role="status">${state.hintMessage}</p>` : ""}
       ${state.settingsOpen ? renderSettings() : ""}
     </section>
   `;
@@ -257,6 +263,7 @@ function bindPuzzleEvents(): void {
   });
 
   mount.querySelector<HTMLButtonElement>("[data-action='erase']")?.addEventListener("click", eraseSelected);
+  mount.querySelector<HTMLButtonElement>("[data-action='clear-all']")?.addEventListener("click", clearAllSelected);
   mount.querySelector<HTMLButtonElement>("[data-action='hint']")?.addEventListener("click", giveHint);
   mount.querySelector<HTMLButtonElement>("[data-action='check']")?.addEventListener("click", checkPuzzle);
   mount.querySelector<HTMLButtonElement>("[data-action='pause']")?.addEventListener("click", () => {
@@ -356,6 +363,7 @@ function resetPuzzleProgress(): void {
   state.paused = false;
   state.completed = false;
   state.hintsUsed = 0;
+  state.hintMessage = null;
 }
 
 function selectCell(index: number): void {
@@ -427,6 +435,16 @@ function eraseSelected(): void {
   saveAndRender();
 }
 
+function clearAllSelected(): void {
+  if (state.selectedCell === null) {
+    return;
+  }
+
+  state.entries[state.selectedCell] = null;
+  state.notes[state.selectedCell].clear();
+  saveAndRender();
+}
+
 function giveHint(): void {
   const puzzle = state.puzzle;
   if (!puzzle) {
@@ -443,10 +461,12 @@ function giveHint(): void {
     return;
   }
 
-  state.entries[target] = Number(puzzle.solution[target]) as Digit;
-  state.notes[target].clear();
+  const row = Math.floor(target / 9) + 1;
+  const column = (target % 9) + 1;
+  const digit = puzzle.solution[target];
   state.selectedCell = target;
   state.hintsUsed += 1;
+  state.hintMessage = `Hint step: row ${row}, column ${column} can be ${digit}. Check its row, column, and box before revealing.`;
   saveAndRender();
 }
 
@@ -455,8 +475,7 @@ function checkPuzzle(): void {
     return;
   }
 
-  state.completed = isSolved(currentPuzzle(), state.puzzle.solution);
-  if (state.completed) {
+  if (isSolved(currentPuzzle(), state.puzzle.solution)) {
     completePuzzle();
   }
   saveAndRender();
@@ -516,6 +535,7 @@ function loadState(): GameState {
     paused: false,
     completed: false,
     hintsUsed: 0,
+    hintMessage: null,
     settingsOpen: false,
     settings: { ...DEFAULT_SETTINGS },
     puzzleKind: "starter",
@@ -536,13 +556,22 @@ function loadState(): GameState {
     return {
       ...emptyState,
       ...saved,
-      puzzle: STARTER_PUZZLES.find((puzzle) => puzzle.id === saved.puzzleId) ?? null,
+      puzzle: STARTER_PUZZLES.find((puzzle) => puzzle.id === saved.puzzleId) ?? saved.puzzle,
       notes: saved.notes.map((notes) => new Set(notes)),
       settings: { ...DEFAULT_SETTINGS, ...saved.settings },
     };
   } catch {
     return emptyState;
   }
+}
+
+function puzzleForDate(dayOffset: number): StarterPuzzle {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  const dayNumber = Math.floor(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000,
+  );
+  return STARTER_PUZZLES[dayNumber % STARTER_PUZZLES.length];
 }
 
 function updateTimerText(): void {
