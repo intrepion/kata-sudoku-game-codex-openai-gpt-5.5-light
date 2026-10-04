@@ -71,3 +71,31 @@ _Avoid_: High score, record
 **Hint Step**:
 One level in the game's escalating assistance, from directional guidance to explanation to optional reveal.
 _Avoid_: Hint tier, cheat level
+
+**Selected Cell**:
+The cell that will receive number, note, or clear actions from the player.
+_Avoid_: Active square, focused tile
+
+**Selected Digit**:
+The digit the player can apply repeatedly to cells during number-first play.
+_Avoid_: Active number, chosen value
+
+**Note Mode**:
+The input state where digit actions add or remove notes instead of entries.
+_Avoid_: Pencil mode, candidate mode
+
+**Conflict Highlight**:
+Visual feedback that identifies matching digits and direct row, column, or box conflicts.
+_Avoid_: Error highlight, warning glow
+
+**Completion Check**:
+Validation that reports whether the current puzzle state is solved or still contains unresolved work.
+_Avoid_: Submit, final answer
+
+**Pause**:
+An explicit player action that stops the timer behind an overlay.
+_Avoid_: Break, background pause
+
+**Saved Puzzle State**:
+The locally persisted in-progress puzzle, including entries, notes, timer, mistakes, completion status, and settings.
+_Avoid_: Save file, session cache
