@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "workflowCommit": "ec75858181646c1277541eda79b2b58c59b93401",
+  "sourceCommit": "b9c75add9c1ecff7867436594a1d2bc6d093352b",
+  "runId": "41405532271",
+  "url": "http://127.0.0.1:4222/",
+  "inputs": {
+    "index.html": "254f16a8e907842007793d15d864ff72d7d01526924e8ea247512b228a043c37",
+    "file-dist/assets/app.css": "15eafdab5f121d5503bb6aa226bea64f8339ef0e81d6771b033e35a1cd322955",
+    "file-dist/assets/app.js": "c1169a357cf44a5f6b40484786a9e9eb5f4aa465fe963d9225189c5eda56d16e"
+  },
+  "browser": "153.0.8010.12",
+  "viewport": {
+    "width": 1280,
+    "height": 1000
+  },
+  "screenshots": [
+    "ninefold-01.png",
+    "ninefold-02.png"
+  ]
+}
